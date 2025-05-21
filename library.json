@@ -1,0 +1,23 @@
+{
+  "name": "DeviceLib",
+  "version": "1.0.0",
+  "description": "A library for rapid implementation of event-driven input and output on ESP8266/ESP32 chips.",
+  "keywords": "arduino, esp8266, esp32, input, output, event-driven, iot, library",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nht173/DeviceLib.git"
+  },
+  "authors": [
+    {
+      "name": "Thai Nguyen",
+      "email": "nhthai173@gmail.com",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "ENVFile": "^1.0.0"
+  },
+  "frameworks": "arduino",
+  "platforms": ["espressif32", "espressif8266"]
+}
