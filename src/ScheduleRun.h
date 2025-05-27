@@ -2,24 +2,42 @@
 #define SCHEDULERUN_H
 
 #include "Arduino.h"
-#include <vector>
+#if defined(ESP32)
+#include <freertos/queue.h>
+#endif
+
+#define MAX_SCHEDULES 20
 
 class ScheduleRun {
 private:
-    uint8_t MAX_SCHEDULES = 0;
-    std::vector<std::function<void()>> schedules;
+#if defined(ESP8266)
+    std::function<void()> scheduleArr[MAX_SCHEDULES];
+#elif defined(ESP32)
+    QueueHandle_t scheduleQueue;
+#endif
 public:
 
     /**
      *
      * @param maxSchedules 0 for unlimited schedules
      */
-    ScheduleRun(uint8_t maxSchedules = 0) {
-        MAX_SCHEDULES = maxSchedules;
+    ScheduleRun() {
+#if defined(ESP32)
+        scheduleQueue = xQueueCreate(MAX_SCHEDULES, sizeof(std::function<void()>));
+#endif
     }
 
     ~ScheduleRun() {
-        schedules.clear();
+#if defined(ESP32)
+        if (scheduleQueue != nullptr) {
+            vQueueDelete(scheduleQueue);
+            scheduleQueue = nullptr;
+        }
+#elif defined(ESP8266)
+        for (auto &s : scheduleArr) {
+            s = nullptr; // clear the schedule array
+        }
+#endif
     }
 
     /**
@@ -27,26 +45,48 @@ public:
      * @param schedule
      */
     void addSchedule(std::function<void()> schedule) {
-        if (MAX_SCHEDULES > 0 && schedules.size() >= MAX_SCHEDULES) {
-            return;
+#if defined(ESP32)
+        if (scheduleQueue == nullptr) return;
+        if (xQueueSend(scheduleQueue, &schedule, 0) != pdTRUE) {
+            Serial.println("[Err][ScheduleRun] Failed to add schedule to queue");
         }
-        schedules.push_back(schedule);
+#elif defined(ESP8266)
+        for (auto &s : scheduleArr) {
+            if (s == nullptr) {
+                s = schedule;
+                return;
+            }
+        }
+#endif
     }
 
     /**
      * @brief Run all schedules and remove them from the list
      */
     void run() {
-        if (schedules.empty()) return;
-
-        auto pending = schedules;
-        schedules.clear();
-
-        for (auto &schedule: pending) {
+#if defined(ESP32)
+        if (scheduleQueue == nullptr) return;
+        std::function<void()> schedule;
+        while (xQueueReceive(scheduleQueue, &schedule, 0) == pdTRUE) {
             if (schedule != nullptr) {
-                schedule();
+                schedule(); // run the schedule
             }
         }
+#elif defined(ESP8266)
+        std::function<void()> pending[20];
+        uint8_t count = 0;
+        for (auto &schedule : scheduleArr) {
+            if (schedule != nullptr) {
+                pending[count++] = schedule;
+                schedule = nullptr; // clear the schedule after running
+            }
+        }
+        for (uint8_t i = 0; i < count; i++) {
+            if (pending[i] != nullptr) {
+                pending[i]();
+            }
+        }
+#endif
     }
 };
 
