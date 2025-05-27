@@ -2,6 +2,7 @@
 #define GENERIC_OUTPUT_BASE_H
 
 #include <Arduino.h>
+#include "DeviceLibTypes.h"
 #include "GPIO_helper.h"
 
 
@@ -196,22 +197,28 @@ public:
      * @brief Set callback function to be called when power is on
      *
      * @param onPowerOn
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onPowerOn(std::function<void()> onPowerOn);
+    void onPowerOn(std::function<void()> onPowerOn, bool schedule = true);
 
     /**
      * @brief Set callback function to be called when power is off
      *
      * @param onPowerOff
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onPowerOff(std::function<void()> onPowerOff);
+    void onPowerOff(std::function<void()> onPowerOff, bool schedule = true);
 
     /**
      * @brief Set callback function to be called when power is changed
      *
      * @param onPowerChanged
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onPowerChanged(std::function<void()> onPowerChanged);
+    void onPowerChanged(std::function<void()> onPowerChanged, bool schedule = true);
 
 
 #if defined(USE_FBRTDB)
@@ -256,9 +263,9 @@ protected:
     bool _activeState;
     startup_state_t _startUpState = START_UP_NONE;
     bool _state;
-    std::function<void()> _onPowerOn = nullptr;
-    std::function<void()> _onPowerOff = nullptr;
-    std::function<void()> _onPowerChanged = nullptr;
+    devlib_callback_t _onPowerOn;
+    devlib_callback_t _onPowerOff;
+    devlib_callback_t _onPowerChanged;
 #ifdef USE_LAST_STATE
     String _pinKey = "";
     bool _flag_set_startup_state = false;
@@ -268,7 +275,7 @@ protected:
      * @brief Schedule run callback function
      * @param callback
      */
-    static void _execCallback(const std::function<void()> &callback);
+    static void _execCallback(devlib_callback_t &callback);
 
 #if defined(USE_PCF)
     PCF_TYPE* _pcf = nullptr;

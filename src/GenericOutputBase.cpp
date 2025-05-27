@@ -21,7 +21,8 @@ stdGenericOutput::GenericOutputBase::GenericOutputBase(uint8_t pin, bool activeS
     _pinKey = "p" + String(_pin);
     pinMode(_pin, OUTPUT);
     // Set last state
-    _execCallback([this]() { begin(); });
+    devlib_callback_t lastStateCB([this](){ begin(); });
+    _execCallback(lastStateCB);
 }
 
 #if defined(USE_PCF)
@@ -35,14 +36,23 @@ stdGenericOutput::GenericOutputBase::GenericOutputBase(PCF_TYPE& pcf, uint8_t pi
     _pcf = &pcf;
     pcf.pinMode(_pin, OUTPUT);
     // Set last state
-    _execCallback([this]() { begin(); });
+    devlib_callback_t lastStateCB([this](){ begin(); });
+    _execCallback(lastStateCB);
 }
 #endif
 
 stdGenericOutput::GenericOutputBase::~GenericOutputBase() {
-    _onPowerChanged = nullptr;
-    _onPowerOff = nullptr;
-    _onPowerOn = nullptr;
+    #if defined(USE_FBRTDB) && FBRTDB_LIB_TYPE == 1
+    // Remove from attachedDBDevices
+    auto it = std::find(attachedDBDevices.begin(), attachedDBDevices.end(), this);
+    if (it != attachedDBDevices.end()) {
+        attachedDBDevices.erase(it);
+    }
+#endif // USE_FBRTDB && FBRTDB_LIB_TYPE == 1
+
+    _onPowerOn.fn = nullptr;
+    _onPowerOff.fn = nullptr;
+    _onPowerChanged.fn = nullptr;
 }
 
 
@@ -71,14 +81,16 @@ void stdGenericOutput::GenericOutputBase::begin() {
     };
 }
 
-void stdGenericOutput::GenericOutputBase::_execCallback(const std::function<void()> &callback) {
-    if (callback != nullptr) {
+void stdGenericOutput::GenericOutputBase::_execCallback(devlib_callback_t &callback) {
+    if (!callback.isValid()) return;
+    if (callback.schedule) {
 #if defined(ESP32)
-        GPIO_Scheduler.addSchedule(callback);
+        GPIO_Scheduler.addSchedule(callback.fn);
 #else
-        schedule_function(callback);
-//        callback();
+        schedule_function(callback.fn);
 #endif
+    } else {
+        callback();
     }
 }
 
@@ -271,14 +283,14 @@ String stdGenericOutput::GenericOutputBase::getStateString() const {
 
 /* =================== Callback =====================*/
 
-void stdGenericOutput::GenericOutputBase::onPowerOn(std::function<void()> onPowerOn) {
-    _onPowerOn = std::move(onPowerOn);
+void stdGenericOutput::GenericOutputBase::onPowerOn(std::function<void()> onPowerOn, bool schedule) {
+    _onPowerOn.assign(onPowerOn, schedule);
 }
 
-void stdGenericOutput::GenericOutputBase::onPowerOff(std::function<void()> onPowerOff) {
-    _onPowerOff = std::move(onPowerOff);
+void stdGenericOutput::GenericOutputBase::onPowerOff(std::function<void()> onPowerOff, bool schedule) {
+    _onPowerOff.assign(onPowerOff, schedule);
 }
 
-void stdGenericOutput::GenericOutputBase::onPowerChanged(std::function<void()> onPowerChanged) {
-    _onPowerChanged = std::move(onPowerChanged);
+void stdGenericOutput::GenericOutputBase::onPowerChanged(std::function<void()> onPowerChanged, bool schedule) {
+    _onPowerChanged.assign(onPowerChanged, schedule);
 }

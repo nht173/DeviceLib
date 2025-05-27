@@ -2,7 +2,12 @@
 #define GENERIC_OUTPUT_H
 
 #include "GenericOutputBase.h"
+
+#if defined(ESP8266)
 #include <Ticker.h>
+#elif defined(ESP32)
+#include <esp_timer.h>
+#endif
 
 namespace stdGenericOutput {
 
@@ -57,6 +62,19 @@ public:
     }
 
 #endif
+
+    void begin() override {
+        GenericOutputBase::begin();
+        esp_timer_create_args_t timerArgs = {
+                .callback = reinterpret_cast<esp_timer_cb_t>(_onTick),
+                .arg = this,
+                .name = String("got" + String(_pin)).c_str(),
+        };
+        esp_err_t err = esp_timer_create(&timerArgs, &_timer);
+        if (err != ESP_OK) {
+            Serial.printf("[GenericOutput][Err][Create timer] Failed to create timer for pin[%d]\n", _pin);
+        }
+    }
 
     /**
      * @brief set power on
@@ -159,18 +177,24 @@ public:
      * @brief Set the callback function to be called when power is turned off automatically
      *
      * @param onAutoOff callback function
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onAutoOff(std::function<void()> onAutoOff) {
-        _onAutoOff = std::move(onAutoOff);
+    void onAutoOff(std::function<void()> onAutoOff, bool schedule = true) {
+        _onAutoOff.assign(onAutoOff, schedule);
     }
 
 protected:
-    Ticker _ticker;
     bool _autoOffEnabled = false;
     state_t _pState = stdGenericOutput::OFF;
     uint32_t _duration = 0;
     uint32_t _pOnDelay = 0;
-    std::function<void()> _onAutoOff = nullptr;
+    devlib_callback_t _onAutoOff;
+#if defined(ESP8266)
+    Ticker _ticker;
+#elif defined(ESP32)
+    esp_timer_handle_t _timer = nullptr;
+#endif
 
     virtual void _on_function(bool force) {
         _pState = stdGenericOutput::ON;

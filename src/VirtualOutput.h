@@ -24,17 +24,21 @@ public:
     /**
      * @brief Set function callback for ON state
      * @param onFunction
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void setOnFunction(std::function<void()> onFunction) {
-        _onFunction = std::move(onFunction);
+    void setOnFunction(std::function<void()> onFunction, bool schedule = true) {
+        _onFunction.assign(onFunction, schedule);
     }
 
     /**
      * @brief Set function callback for OFF state
      * @param offFunction
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void setOffFunction(std::function<void()> offFunction) {
-        _offFunction = std::move(offFunction);
+    void setOffFunction(std::function<void()> offFunction, bool schedule = true) {
+        _offFunction.assign(offFunction, schedule);
     }
 
     /**
@@ -58,8 +62,8 @@ public:
 private:
     String _onStateStr = "ON";
     String _offStateStr = "OFF";
-    std::function<void()> _onFunction = nullptr;
-    std::function<void()> _offFunction = nullptr;
+    devlib_callback_t _onFunction;
+    devlib_callback_t _offFunction;
 
     void _on_function(bool force) override {
         _pState = stdGenericOutput::ON;
