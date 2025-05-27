@@ -6,9 +6,15 @@
 #define GENERICINPUT_H
 
 #include <Arduino.h>
+#include "DeviceLibTypes.h"
 
+// #define DEBUG
 
+#ifdef DEBUG
 #define GI_DEBUG_PRINTF(...) { Serial.print("[GenericInput] "); Serial.printf(__VA_ARGS__); }
+#else
+#define GI_DEBUG_PRINTF(...)
+#endif // DEBUG
 
 
 #if defined(ESP32)
@@ -54,13 +60,13 @@ public:
     GenericInput() = default;
 
     /**
-     * @brief Construct a new GenericInput object
+     * @brief Construct a new GenericButton object
      * @param pin pin number
      * @param mode pin mode. Default is INPUT
      * @param activeState active state. Default is LOW
+     * @param debounceTime debounce time in milliseconds. Default is 50
      */
-    explicit GenericInput(uint8_t pin, uint8_t mode = INPUT, bool activeState = LOW, uint32_t debounceTime = 50,
-                          bool useInterrupt = true);
+    explicit GenericInput(uint8_t pin, uint8_t mode = INPUT, bool activeState = LOW, uint32_t debounceTime = 50);
 
 #if defined(USE_PCF)
 
@@ -70,9 +76,9 @@ public:
      * @param pin pin number
      * @param mode pin mode. Default is INPUT
      * @param activeState active state. Default is LOW
+     * @param debounceTime debounce time in milliseconds. Default is 50
      */
-    explicit GenericInput(PCF_TYPE &pcf, uint8_t pin, uint8_t mode = INPUT, bool activeState = LOW,
-                          uint32_t debounceTime = 50, bool useInterrupt = true);
+    explicit GenericInput(PCF_TYPE &pcf, uint8_t pin, uint8_t mode = INPUT, bool activeState = LOW, uint32_t debounceTime = 50);
 
 #endif
 
@@ -82,6 +88,7 @@ public:
      */
     void setPin(uint8_t pin) {
         _pin = pin;
+        _init();
     }
 
     /**
@@ -98,6 +105,7 @@ public:
      */
     void setMode(uint8_t mode) {
         _setMode(mode);
+        _init();
     }
 
     /**
@@ -106,6 +114,7 @@ public:
      */
     void setDebounceTime(uint32_t debounceTime) {
         _debounceTime = debounceTime;
+        _init();
     }
 
     /**
@@ -122,6 +131,7 @@ public:
      */
     void setActiveState(bool activeState) {
         _activeState = activeState;
+        _init();
     }
 
     /**
@@ -142,7 +152,12 @@ public:
         return _read() == _activeState;
     }
 
-    String getStateString() {
+    /**
+     * @brief Get the current state of the device as a string
+     * 
+     * @return String 
+     */
+    virtual String getStateString() {
         return getState() ? _activeStateStr : _inactiveStateStr;
     }
 
@@ -154,30 +169,42 @@ public:
     void setStateString(const String &activeStateStr, const String &inactiveStateStr) {
         _activeStateStr = activeStateStr;
         _inactiveStateStr = inactiveStateStr;
+        _init();
     }
+
+    /* ================== Callbacks ================== */
 
     /**
      * @brief Set the callback function when state changed
      * @param cb
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onChange(std::function<void()> cb) {
-        _onChangeCB = std::move(cb);
+    virtual void onChange(std::function<void()> cb, bool schedule = true) {
+        _onChangeCB.assign(cb, schedule);
+        _init();
     }
 
     /**
      * @brief Set the callback function when active
      * @param cb
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onActive(std::function<void()> cb) {
-        _onActiveCB = std::move(cb);
+    virtual void onActive(std::function<void()> cb, bool schedule = true) {
+        _onActiveCB.assign(cb, schedule);
+        _init();
     }
 
     /**
      * @brief Set the callback function when inactive
      * @param cb
+     * @param schedule if true, the callback will be scheduled to run in the next loop iteration
+     *                 if false, the callback will be executed immediately
      */
-    void onInactive(std::function<void()> cb) {
-        _onInactiveCB = std::move(cb);
+    virtual void onInactive(std::function<void()> cb, bool schedule = true) {
+        _onInactiveCB.assign(cb, schedule);
+        _init();
     }
 
     /**
@@ -213,29 +240,38 @@ public:
 
 protected:
     uint8_t _pin;
+    bool _isInitialized = false;
     bool _lastState;
     bool _activeState;
     uint32_t _debounceTime;
     String _activeStateStr = "ACTIVE";
     String _inactiveStateStr = "NONE";
 #if defined(ESP32)
-    esp_timer_handle_t _debounceTimer = nullptr;
+    esp_timer_handle_t _timer = nullptr;
 #elif defined(ESP8266)
     Ticker _ticker;
 #endif
     // Callbacks
-    std::function<void()> _onChangeCB = nullptr;
-    std::function<void()> _onActiveCB = nullptr;
-    std::function<void()> _onInactiveCB = nullptr;
+    devlib_callback_t _onChangeCB;
+    devlib_callback_t _onActiveCB;
+    devlib_callback_t _onInactiveCB;
 
-    void _execCallback(const std::function<void()> &callback) {
-        if (callback != nullptr) {
+    /**
+     * @brief Initialize the input
+     * 
+     */
+    virtual void _init();
+
+    virtual void _execCallback(devlib_callback_t &cb) {
+        if (!cb.isValid()) return;
+        if (cb.schedule) {
 #if defined(ESP32)
-            GPIO_Scheduler.addSchedule(callback);
+            GPIO_Scheduler.addSchedule(cb.fn);
 #elif defined(ESP8266)
-            schedule_function(callback);
-//            callback();
+            schedule_function(cb.fn);
 #endif
+        } else {
+            cb();
         }
     }
 
@@ -261,6 +297,12 @@ protected:
      * @param pInput GenericInput object
      */
     void static _debounceHandler(GenericInput *pInput);
+
+    /**
+     * @brief Input process handler
+     * 
+     */
+    virtual void _processHandler();
 
     /**
  * @brief pinMode wrapper

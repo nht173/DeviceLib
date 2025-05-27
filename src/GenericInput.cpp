@@ -12,31 +12,24 @@ QueueHandle_t GenericInput::pcfIRQQueueHandle = nullptr;
 #endif // USE_PCF
 
 
-GenericInput::GenericInput(uint8_t pin, uint8_t mode, bool activeState, uint32_t debounceTime, bool useInterrupt) {
+GenericInput::GenericInput(uint8_t pin, uint8_t mode, bool activeState, uint32_t debounceTime) {
     pinMode(pin, mode);
     _pin = pin;
     _activeState = activeState;
     _lastState = digitalRead(_pin);
     _debounceTime = debounceTime;
-    if (useInterrupt) {
-        attachInterrupt(CHANGE);
-    }
 }
 
 
 #if defined(USE_PCF)
 
-GenericInput::GenericInput(PCF_TYPE &pcf, uint8_t pin, uint8_t mode, bool activeState, uint32_t debounceTime,
-                           bool useInterrupt) {
+GenericInput::GenericInput(PCF_TYPE &pcf, uint8_t pin, uint8_t mode, bool activeState, uint32_t debounceTime) {
     _pcf = &pcf;
     _pin = pin;
     _setMode(mode);
     _activeState = activeState;
     _lastState = _pcf->digitalRead(_pin);
     _debounceTime = debounceTime;
-    if (useInterrupt) {
-        attachInterrupt(CHANGE);
-    }
 }
 
 #endif
@@ -46,11 +39,11 @@ bool GenericInput::attachInterrupt(uint8_t mode) {
 #if defined(ESP32)
     // Create timer for debounce
     esp_timer_create_args_t timerArgs = {
-            .callback = reinterpret_cast<esp_timer_cb_t>(_debounceHandler),
-            .arg = this,
-            .name = String("gidt" + String(_pin)).c_str(),
+        .callback = reinterpret_cast<esp_timer_cb_t>(_debounceHandler),
+        .arg = this,
+        .name = String("gidt" + String(_pin)).c_str(),
     };
-    esp_err_t err = esp_timer_create(&timerArgs, &_debounceTimer);
+    esp_err_t err = esp_timer_create(&timerArgs, &_timer);
     if (err != ESP_OK) {
         Serial.printf("[Err][Create timer] Failed to create timer for pin[%d]\n", _pin);
         return false;
@@ -73,7 +66,8 @@ bool GenericInput::attachInterrupt(uint8_t mode) {
 #endif
     if (digitalPinToInterrupt(_pin) < 0)
         return false;
-    detachInterrupt();
+        
+    // ::detachInterrupt(digitalPinToInterrupt(_pin));
     ::attachInterruptArg(_pin, _irqHandler, this, mode);
     return true;
 } // attachInterrupt
@@ -113,7 +107,7 @@ bool GenericInput::attachInterrupt(PCF_TYPE *pcf, uint8_t boardPin) {
         _attached = &_pcfIRQ.back();
     }
     pinMode(boardPin, INPUT_PULLUP);
-    ::detachInterrupt(digitalPinToInterrupt(boardPin));
+    // ::detachInterrupt(digitalPinToInterrupt(boardPin));
     ::attachInterruptArg(boardPin, _pcfIRQHandler, _attached, FALLING);
     return true;
 }
@@ -144,14 +138,21 @@ void GenericInput::detachInterrupt() {
     ::detachInterrupt(digitalPinToInterrupt(_pin));
 #if defined(ESP32)
     // delete timer
-    if (_debounceTimer != nullptr) {
-        esp_timer_stop(_debounceTimer);
-        esp_timer_delete(_debounceTimer);
-        _debounceTimer = nullptr;
+    if (_timer != nullptr) {
+        esp_timer_stop(_timer);
+        esp_timer_delete(_timer);
+        _timer = nullptr;
     }
 #endif
 } // detachInterrupt
 
+
+
+void GenericInput::_init() {
+    if (_isInitialized) return;
+    _isInitialized = true;
+    attachInterrupt(CHANGE);
+}
 
 
 
@@ -160,9 +161,9 @@ void GenericInput::detachInterrupt() {
 IRAM_ATTR void GenericInput::_irqHandler(void *arg) {
     auto *self = (GenericInput *) arg;
 #if defined(ESP32)
-    if (self->_debounceTimer != nullptr) {
-        esp_timer_stop(self->_debounceTimer);
-        esp_timer_start_once(self->_debounceTimer, self->_debounceTime * 1000);
+    if (self->_timer != nullptr) {
+        esp_timer_stop(self->_timer);
+        esp_timer_start_once(self->_timer, self->_debounceTime * 1000);
     }
 #elif defined(ESP8266)
     self->_ticker.detach();
@@ -176,31 +177,40 @@ IRAM_ATTR void GenericInput::_irqHandler(void *arg) {
 
 
 void GenericInput::_debounceHandler(GenericInput *pInput) {
-    GI_DEBUG_PRINTF("[Debounce] pin[%d] state[%d]\n", pInput->_pin, pInput->_lastState);
-    bool currentState = pInput->_read(true);
-    if (currentState == pInput->_lastState)
+    if (pInput == nullptr) {
+        GI_DEBUG_PRINTF("[Err][Debounce] pInput is null\n");
         return;
-    GI_DEBUG_PRINTF("\t -> pin[%d] %s\n", pInput->_pin, currentState == pInput->_activeState ? "ACTIVE" : "INACTIVE");
-    pInput->_lastState = currentState;
-    if (currentState == pInput->_activeState) {
-        GI_DEBUG_PRINTF("[Callback][%d] Start ActiveCB\n", pInput->_pin);
-        pInput->_execCallback(pInput->_onActiveCB);
-        GI_DEBUG_PRINTF("[Callback][%d] End ActiveCB\n", pInput->_pin);
-    } else {
-        GI_DEBUG_PRINTF("[Callback][%d] Start InactiveCB\n", pInput->_pin);
-        pInput->_execCallback(pInput->_onInactiveCB);
-        GI_DEBUG_PRINTF("[Callback][%d] End InactiveCB\n", pInput->_pin);
     }
-    GI_DEBUG_PRINTF("[Callback][%d] Start ChangeCB\n", pInput->_pin);
-    pInput->_execCallback(pInput->_onChangeCB);
-    GI_DEBUG_PRINTF("[Callback][%d] End ChangeCB\n", pInput->_pin);
+    pInput->_processHandler();
+}
+
+
+void GenericInput::_processHandler() {
+    GI_DEBUG_PRINTF("[Debounce] pin[%d] state[%d]\n", _pin, _lastState);
+    bool currentState = _read(true);
+    if (currentState == _lastState)
+        return;
+    GI_DEBUG_PRINTF("\t -> pin[%d] %s\n", _pin, currentState == _activeState ? "ACTIVE" : "INACTIVE");
+    _lastState = currentState;
+    if (currentState == _activeState) {
+        GI_DEBUG_PRINTF("[Callback][%d] Start ActiveCB\n", _pin);
+        _execCallback(_onActiveCB);
+        GI_DEBUG_PRINTF("[Callback][%d] End ActiveCB\n", _pin);
+    } else {
+        GI_DEBUG_PRINTF("[Callback][%d] Start InactiveCB\n", _pin);
+        _execCallback(_onInactiveCB);
+        GI_DEBUG_PRINTF("[Callback][%d] End InactiveCB\n", _pin);
+    }
+    GI_DEBUG_PRINTF("[Callback][%d] Start ChangeCB\n", _pin);
+    _execCallback(_onChangeCB);
+    GI_DEBUG_PRINTF("[Callback][%d] End ChangeCB\n", _pin);
 }
 
 
 
 
-
 /* ================ PCF ISR ================ */
+#ifdef USE_PCF
 
 IRAM_ATTR void GenericInput::_pcfIRQHandler(void *arg) {
     auto *pcfIRQ = (pcf_irq_t *) arg;
@@ -241,9 +251,9 @@ void GenericInput::processPCFIRQ() {
             if (input->_lastState == input->_read(true))
                 continue;
             if (input->_debounceTime > 0) {
-                if (input->_debounceTimer != nullptr) {
-                    esp_timer_stop(input->_debounceTimer);
-                    esp_timer_start_once(input->_debounceTimer, input->_debounceTime * 1000);
+                if (input->_timer != nullptr) {
+                    esp_timer_stop(input->_timer);
+                    esp_timer_start_once(input->_timer, input->_debounceTime * 1000);
                 }
             } else {
                 _debounceHandler(input);
@@ -252,3 +262,4 @@ void GenericInput::processPCFIRQ() {
     }
 }
 #endif // ESP32
+#endif // USE_PCF
