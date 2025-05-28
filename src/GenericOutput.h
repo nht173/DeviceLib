@@ -65,6 +65,7 @@ public:
 
     void begin() override {
         GenericOutputBase::begin();
+#ifdef ES32
         esp_timer_create_args_t timerArgs = {
                 .callback = reinterpret_cast<esp_timer_cb_t>(_onTick),
                 .arg = this,
@@ -74,6 +75,7 @@ public:
         if (err != ESP_OK) {
             Serial.printf("[GenericOutput][Err][Create timer] Failed to create timer for pin[%d]\n", _pin);
         }
+#endif
     }
 
     /**
