@@ -20,6 +20,8 @@ namespace stdGenericOutput {
     class GenericOutput;
 }
 
+using stdGenericOutput::GenericOutput;
+
 class stdGenericOutput::GenericOutput : public stdGenericOutput::GenericOutputBase {
 public:
 
@@ -199,11 +201,13 @@ protected:
 #endif
 
     virtual void _on_function(bool force) {
+        GO_PRINTF("[%s] excuting _on_function\n", _pinKey.c_str());
         _pState = stdGenericOutput::ON;
         GenericOutputBase::on(force);
     }
 
     virtual void _off_function(bool force) {
+        GO_PRINTF("[%s] excuting _off_function\n", _pinKey.c_str());
         _pState = stdGenericOutput::OFF;
         GenericOutputBase::off(force);
     }
@@ -214,16 +218,16 @@ protected:
      */
     static void _onTick(GenericOutput *pOutput) {
         if (pOutput->_pState == stdGenericOutput::WAIT_FOR_ON) {
+            GO_PRINTF("[%s] ON DELAY FINISHED\n", pOutput->_pinKey.c_str());
             pOutput->_pState = stdGenericOutput::ON;
             pOutput->on(true);
         } else if (pOutput->_pState == stdGenericOutput::ON && pOutput->_autoOffEnabled) {
+            GO_PRINTF("[%s] AUTO OFF FINISHED\n", pOutput->_pinKey.c_str());
             pOutput->off(true);
             pOutput->_execCallback(pOutput->_onAutoOff);
         }
     }
 };
 
-
-using stdGenericOutput::GenericOutput;
 
 #endif //GENERIC_OUTPUT_H

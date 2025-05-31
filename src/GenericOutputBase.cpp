@@ -98,12 +98,14 @@ void stdGenericOutput::GenericOutputBase::_write() {
     /* GPIO set */
     if (_pin != UINT8_MAX) {
 #if defined(USE_PCF)
+        GO_PRINTF("[%s] write: %d\n", _pinKey.c_str(), _state ? _activeState : !_activeState);
         if (_pcf != nullptr) {
             _pcf->digitalWrite(_pin, _state ? _activeState : !_activeState);
         } else {
             digitalWrite(_pin, _state ? _activeState : !_activeState);
         }
 #else
+        GO_PRINTF("[%s] write: %d\n", _pinKey.c_str(), _state ? _activeState : !_activeState);
         digitalWrite(_pin, _state ? _activeState : !_activeState);
 #endif
     }
@@ -125,6 +127,7 @@ void stdGenericOutput::GenericOutputBase::_write() {
 
 void stdGenericOutput::GenericOutputBase::on(bool force) {
     if (_state && !force) return;
+    GO_PRINTF("[%s] ON\n", _pinKey.c_str());
     _state = true;
     _write();
     _execCallback(_onPowerOn);
@@ -133,6 +136,7 @@ void stdGenericOutput::GenericOutputBase::on(bool force) {
 
 void stdGenericOutput::GenericOutputBase::off(bool force) {
     if (!_state && !force) return;
+    GO_PRINTF("[%s] OFF\n", _pinKey.c_str());
     _state = false;
     _write();
     _execCallback(_onPowerOff);
@@ -140,6 +144,7 @@ void stdGenericOutput::GenericOutputBase::off(bool force) {
 }
 
 void stdGenericOutput::GenericOutputBase::toggle() {
+    GO_PRINTF("[%s] TOGGLE - Current: %s\n", _pinKey.c_str(), _state ? "ON" : "OFF");
     _state ? off(false) : on(false);
 }
 

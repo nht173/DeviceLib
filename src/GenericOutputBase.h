@@ -6,6 +6,16 @@
 #include "GPIO_helper.h"
 
 
+// #define DEBUG
+
+#ifdef DEBUG
+#define GO_PRINTF(...) Serial.print("[GenericOutput]"); Serial.printf(__VA_ARGS__)
+#else
+#define GO_PRINTF(...)
+#endif // DEBUG
+
+
+
 #define USE_LAST_STATE
 
 /* ======== Last state ======== */
@@ -72,6 +82,11 @@ namespace stdGenericOutput {
     class GenericOutputBase;
 }
 
+using stdGenericOutput::GenericOutputBase;
+using stdGenericOutput::START_UP_NONE;
+using stdGenericOutput::START_UP_OFF;
+using stdGenericOutput::START_UP_ON;
+using stdGenericOutput::START_UP_LAST_STATE;
 
 
 #if defined(USE_FBRTDB) && FBRTDB_LIB_TYPE == 1
