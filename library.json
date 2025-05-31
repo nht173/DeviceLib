@@ -1,6 +1,6 @@
 {
   "name": "DeviceLib",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A library for rapid implementation of event-driven input and output on ESP8266/ESP32 chips.",
   "keywords": "arduino, esp8266, esp32, input, output, event-driven, iot, library",
   "repository": {
