@@ -286,7 +286,7 @@ protected:
     uint32_t _default_dbclick_time = 300;
     uint32_t _default_idle_time = 500;
     uint32_t _default_hold_time = 3000;
-    uint32_t _hold_time_tick = 100; // how often to check hold time in milliseconds
+    uint32_t _hold_time_tick = _default_hold_time; // how often to check hold time in milliseconds
     uint32_t _last_press_time = 0;
     uint32_t _last_release_time = 0;
     uint8_t _click_count = 0;
