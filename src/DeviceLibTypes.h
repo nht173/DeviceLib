@@ -3,8 +3,8 @@
 
 #include <functional>
 
-#define DEVICE_LIB_VERSION "1.1.1"
-#define DEVICE_LIB_VERSION_NUM 111
+#define DEVICE_LIB_VERSION "1.2.0"
+#define DEVICE_LIB_VERSION_NUM 120
 
 /**
  * @brief Callback wrapper with scheduling support

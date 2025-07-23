@@ -1,6 +1,6 @@
 # DeviceLib - Arduino IoT Library
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](release-notes/)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](release-notes/)
 [![Platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP8266-lightgrey.svg)](platformio.ini)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -26,7 +26,7 @@ A powerful and lightweight Arduino library that transforms traditional polling-b
 ```ini
 [env:your_board]
 lib_deps = 
-    nht173/DeviceLib@^1.1.1
+    nht173/DeviceLib@^1.2.0
     # For PCF8574/8575 support (optional)
     https://github.com/nht173/PCF8574_library.git
 ```
@@ -133,7 +133,7 @@ Expand your I/O using I2C expanders. See [API Documentation](API.md#pcf8574-8575
 ```ini
 # PlatformIO
 lib_deps = 
-    nht173/DeviceLib@^1.1.1
+    nht173/DeviceLib@^1.2.0
     https://github.com/nht173/PCF8574_library.git  # Custom fork
 ```
 
@@ -148,7 +148,7 @@ GenericOutput expanderLed(expander, 1, LOW);
 
 ## 🔧 Advanced Features
 
-### Memory Management (v1.1.1+)
+### Memory Management (v1.2.0+)
 
 Automatic cleanup prevents memory leaks with RAII implementation:
 

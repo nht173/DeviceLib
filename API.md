@@ -1,6 +1,6 @@
 # DeviceLib API Documentation
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](../release-notes/)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](../release-notes/)
 [![Platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP8266-lightgrey.svg)](../platformio.ini)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
 
@@ -146,7 +146,7 @@ void onEvent(generic_button_event_t event, std::function<void()> cb, uint32_t pa
 - `schedule` - **Execution mode:** `true` = scheduled (safe, default), `false` = immediate (ISR). See [Callback Scheduling](#callback-scheduling-system) for details.
 - `param` - Additional parameter for `CLICK_COUNT` (count) or `PRESS_HOLD` (time in ms)
 
-### 🧹 Callback Management (v1.1.1+)
+### 🧹 Callback Management (v1.2.0+)
 
 ```cpp
 void clearCallbacks();                                    // Remove all callbacks
@@ -834,7 +834,7 @@ Expand your I/O capabilities using I2C GPIO expanders.
 **PlatformIO:**
 ```ini
 lib_deps = 
-    nht173/DeviceLib@^1.1.1
+    nht173/DeviceLib@^1.2.0
     https://github.com/nht173/PCF8574_library.git  # Required for PCF support
 ```
 
@@ -1029,6 +1029,6 @@ void loop() {
 
 ---
 
-**🎯 This API documentation covers DeviceLib v1.1.1**
+**🎯 This API documentation covers DeviceLib v1.2.0**
 
 *For release notes and migration guides, see [release-notes/](../release-notes/)*
