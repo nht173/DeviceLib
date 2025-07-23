@@ -83,6 +83,21 @@ public:
 #endif
 
     /**
+     * @brief Destructor - cleanup timers safely
+     */
+    virtual ~GenericInput() {
+#if defined(ESP8266)
+        _ticker.detach();
+#elif defined(ESP32)
+        if (_timer != nullptr) {
+            esp_timer_stop(_timer);
+            esp_timer_delete(_timer);
+            _timer = nullptr;
+        }
+#endif
+    }
+
+    /**
      * @brief Set the pin number
      * @param pin
      */

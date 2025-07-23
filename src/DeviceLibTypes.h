@@ -3,8 +3,12 @@
 
 #include <functional>
 
-#define DEVICE_LIB_VERSION "1.0.0"
-#define DEVICE_LIB_VERSION_NUM 1
+#define DEVICE_LIB_VERSION "1.1.1"
+#define DEVICE_LIB_VERSION_NUM 111
+
+/**
+ * @brief Callback wrapper with scheduling support
+ */
 
 struct devlib_callback_t {
     std::function<void()> fn = nullptr;

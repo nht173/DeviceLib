@@ -4,6 +4,7 @@
 #include "DeviceLibTypes.h"
 #include "GenericInput.h"
 #include <vector>
+#include <algorithm>
 
 enum generic_button_event_t
 {
@@ -68,6 +69,25 @@ public:
         : GenericInput(pcf, pin, mode, activeState, debounceTime) {}
 
 #endif
+
+    /**
+     * @brief Destructor - cleanup timers and callbacks safely
+     */
+    ~GenericButton() {
+#if defined(ESP8266)
+        // Stop ESP8266 Ticker
+        _ticker.detach();
+#elif defined(ESP32)
+        // Stop ESP32 timer first to prevent callbacks during destruction
+        if (_btnTimer != nullptr) {
+            esp_timer_stop(_btnTimer);
+            esp_timer_delete(_btnTimer);
+            _btnTimer = nullptr;
+        }
+#endif
+        // Clear callbacks explicitly for safety (though vector destructor would do this)
+        _callbacks.clear();
+    }
 
     /**
      * @brief Get the State object
@@ -162,10 +182,11 @@ public:
     /* ========================== Callbacks ========================== */
 
     /**
-     * @deprecated
+     * @deprecated Use onRelease instead
      * @brief [Deprecated]. Use onRelease instead.
      * 
-     * @param cb 
+     * @param cb callback function
+     * @param schedule whether to schedule the callback
      */
     [[deprecated("Use onRelease instead")]]
     void onInactive(std::function<void()> cb, bool schedule = true) override {
@@ -173,10 +194,11 @@ public:
     }
 
     /**
-     * @deprecated [Deprecated]. Use onPress instead.
-     * @brief The callback function will be executed when the button is click.
+     * @deprecated Use onPress instead
+     * @brief [Deprecated]. Use onPress instead.
      * 
-     * @param cb 
+     * @param cb callback function
+     * @param schedule whether to schedule the callback
      */
     [[deprecated("Use onPress instead")]]
     void onActive(std::function<void()> cb, bool schedule = true) override {
@@ -281,6 +303,27 @@ public:
         _autoAdjustTickTime();
     }
 
+    /**
+     * @brief Clear all callbacks for this button
+     */
+    void clearCallbacks() {
+        _callbacks.clear();
+    }
+
+    /**
+     * @brief Remove callbacks for a specific event type
+     * @param event Event type to remove
+     */
+    void removeCallbacks(generic_button_event_t event) {
+        _callbacks.erase(
+            std::remove_if(_callbacks.begin(), _callbacks.end(),
+                [event](const generic_button_cb_t& cb) {
+                    return cb.event == event;
+                }),
+            _callbacks.end()
+        );
+    }
+
 protected:
     generic_button_state_t _state = BUTTON_STATE_IDLE;
     uint32_t _default_dbclick_time = 300;
@@ -318,6 +361,7 @@ protected:
         esp_err_t err = esp_timer_create(&timerArgs, &_btnTimer);
         if (err != ESP_OK) {
             GI_DEBUG_PRINTF("[Button][%d] Failed to create button timer: %s\n", _pin, esp_err_to_name(err));
+            _btnTimer = nullptr;
         }
         GenericInput::_init();
     }

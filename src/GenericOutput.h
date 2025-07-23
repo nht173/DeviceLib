@@ -65,17 +65,36 @@ public:
 
 #endif
 
+    /**
+     * @brief Destructor - cleanup timers
+     */
+    ~GenericOutput() {
+#if defined(ESP8266)
+        _ticker.detach();
+#elif defined(ESP32)
+        if (_timer != nullptr) {
+            esp_timer_stop(_timer);
+            esp_timer_delete(_timer);
+            _timer = nullptr;
+        }
+#endif
+    }
+
     void begin() override {
         GenericOutputBase::begin();
-#ifdef ES32
-        esp_timer_create_args_t timerArgs = {
-                .callback = reinterpret_cast<esp_timer_cb_t>(_onTick),
-                .arg = this,
-                .name = String("got" + String(_pin)).c_str(),
-        };
-        esp_err_t err = esp_timer_create(&timerArgs, &_timer);
-        if (err != ESP_OK) {
-            Serial.printf("[GenericOutput][Err][Create timer] Failed to create timer for pin[%d]\n", _pin);
+#ifdef ESP32
+        if (_timer == nullptr) {
+            esp_timer_create_args_t timerArgs = {
+                    .callback = reinterpret_cast<esp_timer_cb_t>(_onTick),
+                    .arg = this,
+                    .name = String("got" + String(_pin)).c_str(),
+            };
+            esp_err_t err = esp_timer_create(&timerArgs, &_timer);
+            if (err != ESP_OK) {
+                Serial.printf("[GenericOutput][Error] Failed to create timer for pin[%d]: %s\n", 
+                             _pin, esp_err_to_name(err));
+                _timer = nullptr;
+            }
         }
 #endif
     }
@@ -217,6 +236,11 @@ protected:
      * @param pOutput
      */
     static void _onTick(GenericOutput *pOutput) {
+        if (pOutput == nullptr) {
+            Serial.println("[GenericOutput][Error] Null pointer in _onTick callback");
+            return;
+        }
+        
         if (pOutput->_pState == stdGenericOutput::WAIT_FOR_ON) {
             GO_PRINTF("[%s] ON DELAY FINISHED\n", pOutput->_pinKey.c_str());
             pOutput->_pState = stdGenericOutput::ON;

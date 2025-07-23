@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "GenericOutput.h"
+#include "DeviceLibTypes.h"
 
 /* Basic usage with startup last state */
 GenericOutput led(
@@ -14,6 +15,9 @@ GenericOutput led(
 void setup()
 {
     Serial.begin(115200);
+    
+    // Print library version
+    Serial.println("DeviceLib Version: " DEVICE_LIB_VERSION);
 
     led.setPowerOnDelay(1000); // 1 second delay before turning on
 
